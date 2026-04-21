@@ -1,0 +1,2071 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CAFFINI — Pedidos</title>
+<script src="https://js.stripe.com/v3/"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,600;1,400&family=DM+Sans:wght@400;500;600&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0d1f14;
+    --surface: #132a1a;
+    --surface2: #1a3522;
+    --border: #254d30;
+    --accent: #2e7d45;
+    --accent-hover: #256038;
+    --accent2: #6abf82;
+    --text: #f5f5f0;
+    --muted: #7aaa88;
+    --white: #ffffff;
+    --success: #4caf70;
+    --warn: #f5a623;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'DM Sans', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  .topbar {
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 13px 28px;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+  }
+
+  .logo-main {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 28px;
+    font-weight: 600;
+    color: var(--white);
+    letter-spacing: 1px;
+  }
+
+  .logo-dot { color: var(--accent2); }
+
+  .logo-sub {
+    font-family: 'Space Mono', monospace;
+    font-size: 8px;
+    color: var(--muted);
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    margin-top: 2px;
+  }
+
+  .view-toggle {
+    display: flex;
+    gap: 4px;
+    background: var(--bg);
+    border-radius: 10px;
+    padding: 4px;
+  }
+
+  .view-btn {
+    padding: 8px 20px;
+    border: none;
+    border-radius: 7px;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all .2s;
+    background: transparent;
+    color: var(--muted);
+  }
+
+  .view-btn.active { background: var(--accent); color: var(--white); }
+
+  .cart-btn {
+    background: var(--accent);
+    color: var(--white);
+    border: none;
+    border-radius: 10px;
+    padding: 10px 20px;
+    font-family: 'DM Sans', sans-serif;
+    font-weight: 600;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 14px;
+    transition: transform .15s, background .15s;
+  }
+
+  .cart-btn:hover { background: var(--accent-hover); }
+
+  .cart-badge {
+    background: var(--white);
+    color: var(--accent);
+    border-radius: 50%;
+    width: 20px;
+    height: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 11px;
+    font-weight: 700;
+  }
+
+  .page { display: none; }
+  .page.active { display: block; }
+
+  .menu-main {
+    display: grid;
+    grid-template-columns: 150px 1fr;
+    min-height: calc(100vh - 65px);
+  }
+
+  .cat-sidebar {
+    background: var(--surface);
+    border-right: 1px solid var(--border);
+    padding: 24px 0;
+    position: sticky;
+    top: 65px;
+    height: calc(100vh - 65px);
+    overflow-y: auto;
+  }
+
+  .cat-title {
+    font-family: 'Space Mono', monospace;
+    font-size: 9px;
+    color: var(--muted);
+    padding: 0 12px 10px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+  }
+
+  .cat-item {
+    padding: 10px 12px;
+    cursor: pointer;
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--muted);
+    border-left: 3px solid transparent;
+    transition: all .2s;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .cat-item:hover, .cat-item.active {
+    color: var(--white);
+    border-left-color: var(--accent2);
+    background: rgba(46,125,69,.12);
+  }
+
+  .cat-emoji { font-size: 15px; }
+
+  .menu-content {
+    padding: 20px 24px;
+    overflow-y: auto;
+    background: var(--bg);
+  }
+
+  .menu-hero {
+    margin-bottom: 36px;
+    padding: 32px 36px;
+    background: var(--surface);
+    border-radius: 20px;
+    border: 1px solid var(--border);
+    position: relative;
+    overflow: hidden;
+  }
+
+  .menu-hero::before {
+    content: '🌿';
+    position: absolute;
+    right: 32px;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 72px;
+    opacity: .1;
+  }
+
+  .hero-title {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 40px;
+    font-weight: 600;
+    color: var(--white);
+    line-height: 1.1;
+    margin-bottom: 8px;
+  }
+
+  .hero-title em { color: var(--accent2); font-style: italic; }
+  .hero-sub { font-size: 14px; color: var(--muted); }
+
+  .section-title {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 32px;
+    font-weight: 600;
+    color: var(--white);
+    margin-bottom: 18px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .section-title::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--border);
+  }
+
+  .items-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
+    gap: 14px;
+    margin-bottom: 44px;
+  }
+
+  .item-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    overflow: hidden;
+    transition: transform .2s, border-color .2s, box-shadow .2s;
+    cursor: pointer;
+  }
+
+  .item-card:hover {
+    border-color: var(--accent2);
+    box-shadow: 0 4px 16px rgba(46,125,69,.18);
+  }
+
+  .item-img {
+    height: 108px;
+    background: var(--surface2);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 48px;
+  }
+
+  .item-info { padding: 14px; }
+
+  .item-name {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 17px;
+    font-weight: 600;
+    margin-bottom: 4px;
+    color: var(--white);
+  }
+
+  .item-desc {
+    font-size: 12px;
+    color: var(--muted);
+    margin-bottom: 12px;
+    line-height: 1.5;
+  }
+
+  .item-footer { display: flex; align-items: center; justify-content: space-between; }
+
+  .item-price {
+    font-family: 'Space Mono', monospace;
+    font-size: 14px;
+    color: var(--accent2);
+    font-weight: 700;
+  }
+
+  .add-btn {
+    background: var(--accent);
+    color: var(--white);
+    border: none;
+    border-radius: 8px;
+    width: 32px;
+    height: 32px;
+    font-size: 20px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background .15s, transform .1s;
+  }
+
+  .add-btn:hover { background: var(--accent-hover); }
+
+
+  .qty-btn {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    color: var(--text);
+    border-radius: 6px;
+    width: 26px;
+    height: 26px;
+    cursor: pointer;
+    font-size: 14px;
+    transition: background .15s;
+  }
+
+  .qty-btn:hover { background: var(--border); }
+
+  .qty-num {
+    font-family: 'Space Mono', monospace;
+    font-size: 14px;
+    min-width: 16px;
+    text-align: center;
+  }
+
+  .name-input {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    color: var(--text);
+    padding: 11px 14px;
+    width: 100%;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 14px;
+    margin-bottom: 10px;
+    transition: border-color .2s;
+  }
+
+  .name-input:focus { outline: none; border-color: var(--accent2); }
+  .name-input::placeholder { color: var(--muted); }
+
+  .send-btn {
+    background: var(--accent);
+    color: var(--white);
+    border: none;
+    border-radius: 12px;
+    width: 100%;
+    padding: 14px;
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 20px;
+    font-weight: 600;
+    letter-spacing: 1px;
+    cursor: pointer;
+    transition: background .2s, transform .1s;
+  }
+
+  .send-btn:hover { background: var(--accent-hover); }
+
+
+  .status-page {
+    max-width: 500px;
+    margin: 60px auto;
+    padding: 0 24px;
+    text-align: center;
+  }
+
+  .order-number {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 88px;
+    font-weight: 600;
+    color: var(--accent2);
+    line-height: 1;
+    margin-bottom: 4px;
+  }
+
+  .order-label {
+    font-family: 'Space Mono', monospace;
+    font-size: 11px;
+    color: var(--muted);
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    margin-bottom: 10px;
+  }
+
+  .status-steps {
+    display: flex;
+    flex-direction: column;
+    text-align: left;
+    margin: 32px 0;
+  }
+
+  .step {
+    display: flex;
+    align-items: flex-start;
+    gap: 16px;
+    padding: 18px 0;
+    position: relative;
+  }
+
+  .step:not(:last-child)::after {
+    content: '';
+    position: absolute;
+    left: 19px;
+    top: 52px;
+    bottom: 0;
+    width: 2px;
+    background: var(--border);
+  }
+
+  .step.done::after { background: var(--success); }
+
+  .step-dot {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    border: 2px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 17px;
+    flex-shrink: 0;
+    background: var(--bg);
+    z-index: 1;
+  }
+
+  .step.done .step-dot { border-color: var(--success); background: rgba(76,175,112,.15); }
+
+  .step.current .step-dot {
+    border-color: var(--accent2);
+    background: rgba(106,191,130,.1);
+    animation: pulse 1.5s infinite;
+  }
+
+  @keyframes pulse {
+    0%,100% { box-shadow: 0 0 0 0 rgba(106,191,130,.4); }
+    50% { box-shadow: 0 0 0 8px rgba(106,191,130,0); }
+  }
+
+  .step-name { font-weight: 600; font-size: 15px; color: var(--white); }
+  .step-desc { font-size: 13px; color: var(--muted); margin-top: 2px; }
+
+  .new-order-btn {
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--muted);
+    border-radius: 10px;
+    padding: 11px 24px;
+    font-family: 'DM Sans', sans-serif;
+    font-weight: 600;
+    cursor: pointer;
+    font-size: 14px;
+    transition: border-color .2s, color .2s;
+  }
+
+  .new-order-btn:hover { border-color: var(--accent2); color: var(--white); }
+
+  .counter-page { padding: 28px; }
+
+  .counter-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 24px;
+  }
+
+  .counter-title {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 38px;
+    font-weight: 600;
+    color: var(--white);
+  }
+
+  .live-dot {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 12px;
+    color: var(--success);
+    font-family: 'Space Mono', monospace;
+    letter-spacing: 2px;
+  }
+
+  .live-dot::before {
+    content: '';
+    width: 9px;
+    height: 9px;
+    border-radius: 50%;
+    background: var(--success);
+    animation: blink 1s infinite;
+  }
+
+  @keyframes blink {
+    0%,100% { opacity: 1; }
+    50% { opacity: .2; }
+  }
+
+  .orders-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 16px;
+  }
+
+  .order-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    overflow: hidden;
+  }
+
+  .order-card.status-novo    { border-top: 3px solid var(--accent2); }
+  .order-card.status-preparo { border-top: 3px solid var(--warn); }
+  .order-card.status-pronto  { border-top: 3px solid var(--success); }
+
+  .order-card-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    padding: 14px 16px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .order-num-badge {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 30px;
+    font-weight: 600;
+    color: var(--accent2);
+    line-height: 1;
+  }
+
+  .order-client { font-weight: 600; font-size: 15px; color: var(--white); }
+  .order-time { font-family: 'Space Mono', monospace; font-size: 11px; color: var(--muted); }
+
+  .status-chip {
+    padding: 4px 12px;
+    border-radius: 20px;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+  }
+
+  .chip-novo    { background: rgba(106,191,130,.15); color: var(--accent2); }
+  .chip-preparo { background: rgba(245,166,35,.15);  color: var(--warn); }
+  .chip-pronto  { background: rgba(76,175,112,.15);  color: var(--success); }
+
+  .order-items-list {
+    padding: 14px 16px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .order-line {
+    display: flex;
+    justify-content: space-between;
+    font-size: 14px;
+    padding: 3px 0;
+    color: var(--text);
+  }
+
+  .order-line .qty { color: var(--accent2); font-weight: 700; margin-right: 6px; }
+
+  .order-card-foot { display: flex; gap: 8px; padding: 12px 16px; }
+
+  .action-btn {
+    flex: 1;
+    border: none;
+    border-radius: 8px;
+    padding: 10px;
+    font-family: 'DM Sans', sans-serif;
+    font-weight: 600;
+    font-size: 13px;
+    cursor: pointer;
+    transition: opacity .2s;
+  }
+
+  .action-btn:hover { opacity: .85; }
+  .btn-preparo { background: var(--warn); color: #000; }
+  .btn-pronto  { background: var(--success); color: #fff; }
+  .btn-print   { background: var(--surface2); color: var(--text); border: 1px solid var(--border); }
+  .btn-done    { background: var(--border); color: var(--muted); cursor: default; }
+
+  .empty-counter { grid-column: 1/-1; text-align: center; padding: 80px 0; color: var(--muted); }
+  .empty-counter .big { font-size: 60px; margin-bottom: 16px; }
+
+  .modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,.7);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    z-index: 200;
+    backdrop-filter: blur(4px);
+  }
+
+  .modal-overlay.open { display: flex; }
+
+  .print-modal {
+    background: #fff;
+    color: #000;
+    width: 320px;
+    border-radius: 4px;
+    font-family: 'Space Mono', monospace;
+    font-size: 13px;
+    overflow: hidden;
+  }
+
+
+
+  .print-paper      { padding: 24px 20px; border-bottom: 2px dashed #ccc; }
+  .print-logo       { text-align: center; font-size: 18px; font-weight: 700; letter-spacing: 3px; margin-bottom: 2px; color: #0d3318; }
+  .print-sub        { text-align: center; font-size: 10px; color: #666; margin-bottom: 16px; }
+  .print-divider    { border: none; border-top: 1px dashed #ccc; margin: 10px 0; }
+  .print-row        { display: flex; justify-content: space-between; margin-bottom: 4px; }
+  .print-total-row  { display: flex; justify-content: space-between; font-weight: 700; font-size: 15px; margin-top: 8px; }
+  .print-footer-text{ text-align: center; font-size: 10px; color: #999; margin-top: 14px; }
+
+  .modal-actions { display: flex; }
+
+  .modal-btn {
+    flex: 1;
+    padding: 14px;
+    border: none;
+    cursor: pointer;
+    font-family: 'DM Sans', sans-serif;
+    font-weight: 600;
+    font-size: 14px;
+    transition: opacity .2s;
+  }
+
+  .modal-btn:hover { opacity: .85; }
+  .modal-btn.close    { background: #eee; color: #333; }
+  .modal-btn.print-go { background: #0d3318; color: #fff; }
+
+  .toast {
+    position: fixed;
+    bottom: 24px;
+    left: 50%;
+    transform: translateX(-50%) translateY(80px);
+    background: var(--surface);
+    border: 1px solid var(--accent2);
+    color: var(--text);
+    padding: 13px 24px;
+    border-radius: 12px;
+    font-weight: 600;
+    font-size: 14px;
+    z-index: 300;
+    transition: transform .3s cubic-bezier(.34,1.56,.64,1);
+    white-space: nowrap;
+  }
+
+  .toast.show { transform: translateX(-50%) translateY(0); }
+
+
+  /* ─── ITEM MODAL ─── */
+  .item-modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,.75);
+    display: none;
+    align-items: flex-end;
+    justify-content: center;
+    z-index: 150;
+    backdrop-filter: blur(3px);
+  }
+
+  .item-modal-overlay.open { display: flex; }
+
+  .item-modal {
+    background: var(--surface);
+    border-radius: 20px 20px 0 0;
+    border: 1px solid var(--border);
+    width: 100%;
+    max-width: 600px;
+    max-height: 90vh;
+    overflow-y: auto;
+    padding: 24px;
+    animation: slideUp .25s ease;
+  }
+
+  @keyframes slideUp {
+    from { transform: translateY(100%); opacity: 0; }
+    to   { transform: translateY(0);    opacity: 1; }
+  }
+
+  .item-modal-header {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    margin-bottom: 20px;
+  }
+
+  .item-modal-emoji { font-size: 48px; }
+
+  .item-modal-title {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 22px;
+    font-weight: 600;
+    color: var(--white);
+  }
+
+  .item-modal-desc {
+    font-size: 13px;
+    color: var(--muted);
+    margin-top: 4px;
+    line-height: 1.5;
+  }
+
+  .item-modal-price {
+    font-family: 'Space Mono', monospace;
+    font-size: 18px;
+    color: var(--accent2);
+    font-weight: 700;
+    margin-top: 4px;
+  }
+
+  .modal-section-label {
+    font-family: 'Space Mono', monospace;
+    font-size: 10px;
+    color: var(--muted);
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    margin-bottom: 10px;
+    margin-top: 20px;
+  }
+
+  .options-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 4px;
+  }
+
+  .chip {
+    padding: 6px 14px;
+    border-radius: 20px;
+    border: 1px solid var(--border);
+    background: var(--surface2);
+    color: var(--muted);
+    font-size: 13px;
+    cursor: pointer;
+    transition: all .2s;
+    user-select: none;
+  }
+
+  .chip:hover { border-color: var(--accent2); color: var(--text); }
+  .chip.selected { border-color: var(--accent2); background: rgba(106,191,130,.15); color: var(--white); }
+
+  .notes-input {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    color: var(--text);
+    padding: 10px 14px;
+    width: 100%;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 14px;
+    resize: none;
+    height: 80px;
+    transition: border-color .2s;
+    margin-top: 4px;
+  }
+
+  .notes-input:focus { outline: none; border-color: var(--accent2); }
+  .notes-input::placeholder { color: var(--muted); }
+
+  .modal-add-btn {
+    background: var(--accent);
+    color: var(--white);
+    border: none;
+    border-radius: 12px;
+    width: 100%;
+    padding: 14px;
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 20px;
+    font-weight: 600;
+    cursor: pointer;
+    margin-top: 20px;
+    transition: background .2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+  }
+
+  .modal-add-btn:hover { background: var(--accent-hover); }
+
+  .modal-close-btn {
+    position: absolute;
+    top: 16px;
+    right: 16px;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    color: var(--muted);
+    border-radius: 50%;
+    width: 32px;
+    height: 32px;
+    cursor: pointer;
+    font-size: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .qty-modal {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 16px;
+    margin-top: 16px;
+  }
+
+  .qty-modal-btn {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    color: var(--text);
+    border-radius: 8px;
+    width: 36px;
+    height: 36px;
+    cursor: pointer;
+    font-size: 18px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .qty-modal-num {
+    font-family: 'Space Mono', monospace;
+    font-size: 20px;
+    min-width: 32px;
+    text-align: center;
+    color: var(--white);
+  }
+
+  .notes-tag {
+    font-size: 11px;
+    color: var(--accent2);
+    font-style: italic;
+    margin-top: 2px;
+  }
+
+
+  /* ─── PAYMENT SECTION ─── */
+  .payment-section {
+    margin-top: 16px;
+  }
+
+  .payment-divider {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin: 16px 0;
+    color: var(--muted);
+    font-size: 12px;
+    font-family: 'Space Mono', monospace;
+  }
+
+  .payment-divider::before,
+  .payment-divider::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--border);
+  }
+
+  #payment-request-button {
+    margin-bottom: 12px;
+  }
+
+  #payment-request-button iframe {
+    border-radius: 10px !important;
+  }
+
+  .card-input-wrap {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 12px 14px;
+    margin-bottom: 10px;
+    transition: border-color .2s;
+  }
+
+  .card-input-wrap.focused { border-color: var(--accent2); }
+
+  .pay-btn {
+    background: var(--accent);
+    color: var(--white);
+    border: none;
+    border-radius: 12px;
+    width: 100%;
+    padding: 14px;
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 20px;
+    font-weight: 600;
+    letter-spacing: 1px;
+    cursor: pointer;
+    transition: background .2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+  }
+
+  .pay-btn:hover { background: var(--accent-hover); }
+  .pay-btn:disabled { background: var(--border); color: var(--muted); cursor: not-allowed; }
+
+  .pay-btn .spinner {
+    width: 18px;
+    height: 18px;
+    border: 2px solid rgba(255,255,255,.3);
+    border-top-color: #fff;
+    border-radius: 50%;
+    animation: spin .7s linear infinite;
+    display: none;
+  }
+
+  .pay-btn.loading .spinner { display: block; }
+  .pay-btn.loading .btn-text { display: none; }
+
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .payment-error {
+    background: rgba(229,57,53,.1);
+    border: 1px solid rgba(229,57,53,.3);
+    color: #ef9a9a;
+    border-radius: 8px;
+    padding: 10px 14px;
+    font-size: 13px;
+    margin-bottom: 10px;
+    display: none;
+  }
+
+  .payment-success {
+    text-align: center;
+    padding: 20px;
+  }
+
+  .payment-success .success-icon {
+    font-size: 48px;
+    margin-bottom: 12px;
+  }
+
+  .payment-success p {
+    color: var(--muted);
+    font-size: 14px;
+  }
+
+  .secure-badge {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    font-size: 11px;
+    color: var(--muted);
+    margin-top: 10px;
+    font-family: 'Space Mono', monospace;
+  }
+
+  .payment-tabs {
+    display: flex;
+    gap: 6px;
+    margin-bottom: 12px;
+  }
+
+  .payment-tab {
+    flex: 1;
+    padding: 8px;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    background: transparent;
+    color: var(--muted);
+    font-family: 'DM Sans', sans-serif;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all .2s;
+    text-align: center;
+  }
+
+  .payment-tab.active {
+    background: var(--accent);
+    color: var(--white);
+    border-color: var(--accent);
+  }
+
+  ::-webkit-scrollbar { width: 4px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div style="display:flex;align-items:center;gap:0;">
+    <svg width="180" height="44" viewBox="0 0 180 44" xmlns="http://www.w3.org/2000/svg">
+      <text x="0" y="34" font-family="Georgia, 'Times New Roman', serif" font-size="36" font-weight="400" letter-spacing="6" fill="#f5f5f0">CAFFINI</text>
+    </svg>
+  </div>
+  <div class="view-toggle">
+    <button class="view-btn active" onclick="setView('customer')">☕ Menu</button>
+    <button class="view-btn" onclick="setView('counter')">👩‍🍳 Counter</button>
+  </div>
+  <button class="cart-btn" onclick="setView('cart')">
+    🧺 Order <span class="cart-badge" id="cartBadge">0</span>
+  </button>
+</div>
+
+<!-- CUSTOMER -->
+<div class="page active" id="page-customer">
+  <div class="menu-main">
+    <div class="cat-sidebar">
+      <div class="cat-title">Menu</div>
+      <div class="cat-item active" onclick="scrollCat('breakfast')"  data-cat="breakfast"> <span class="cat-emoji">🍳</span>Breakfast</div>
+      <div class="cat-item"        onclick="scrollCat('toast')"      data-cat="toast">     <span class="cat-emoji">🍞</span>Toast</div>
+      <div class="cat-item"        onclick="scrollCat('panini')"     data-cat="panini">    <span class="cat-emoji">🥪</span>Panini</div>
+      <div class="cat-item"        onclick="scrollCat('lunch')"      data-cat="lunch">     <span class="cat-emoji">🍽️</span>Lunch</div>
+      <div class="cat-item"        onclick="scrollCat('pasta')"      data-cat="pasta">     <span class="cat-emoji">🍝</span>Pasta</div>
+      <div class="cat-item"        onclick="scrollCat('pizza')"      data-cat="pizza">     <span class="cat-emoji">🍕</span>Pizza</div>
+      <div class="cat-item"        onclick="scrollCat('burgers')"    data-cat="burgers">   <span class="cat-emoji">🍔</span>Burgers</div>
+      <div class="cat-item"        onclick="scrollCat('pasteis')"    data-cat="pasteis">   <span class="cat-emoji">🥟</span>Pasteis</div>
+      <div class="cat-item"        onclick="scrollCat('sides')"      data-cat="sides">     <span class="cat-emoji">🍟</span>Sides</div>
+      <div class="cat-item"        onclick="scrollCat('hotcoffee')"  data-cat="hotcoffee"> <span class="cat-emoji">☕</span>Hot Coffee</div>
+      <div class="cat-item"        onclick="scrollCat('icedcoffee')" data-cat="icedcoffee"><span class="cat-emoji">🧊</span>Iced Coffee</div>
+      <div class="cat-item"        onclick="scrollCat('frappe')"     data-cat="frappe">    <span class="cat-emoji">🥤</span>Frappe</div>
+      <div class="cat-item"        onclick="scrollCat('matcha')"     data-cat="matcha">    <span class="cat-emoji">🍵</span>Matcha</div>
+      <div class="cat-item"        onclick="scrollCat('tea')"        data-cat="tea">       <span class="cat-emoji">🌿</span>Tea</div>
+      <div class="cat-item"        onclick="scrollCat('drinks')"     data-cat="drinks">    <span class="cat-emoji">🥤</span>Juices</div>
+    </div>
+
+    <div class="menu-content">
+      <div class="menu-hero">
+        <div>
+          <div class="hero-title">Welcome to<br><em>CAFFINI</em></div>
+          <div class="hero-sub">Order from our full menu and send directly to the counter 🌿</div>
+        </div>
+      </div>
+
+      <div id="sec-breakfast"> <div class="section-title">🍳 All Day Breakfast</div>  <div class="items-grid" id="grid-breakfast"></div></div>
+      <div id="sec-toast">     <div class="section-title">🍞 Fresh Toast</div>         <div class="items-grid" id="grid-toast"></div></div>
+      <div id="sec-panini">    <div class="section-title">🥪 Freshly Toasted Panini</div><div class="items-grid" id="grid-panini"></div></div>
+      <div id="sec-lunch">     <div class="section-title">🍽️ Lunch Plates</div>        <div class="items-grid" id="grid-lunch"></div></div>
+      <div id="sec-pasta">     <div class="section-title">🍝 Pasta & Oven Dishes</div> <div class="items-grid" id="grid-pasta"></div></div>
+      <div id="sec-pizza">     <div class="section-title">🍕 Pizza</div>               <div class="items-grid" id="grid-pizza"></div></div>
+      <div id="sec-burgers">   <div class="section-title">🍔 Burgers</div>             <div class="items-grid" id="grid-burgers"></div></div>
+      <div id="sec-pasteis">   <div class="section-title">🥟 Brazilian Pasteis</div>   <div class="items-grid" id="grid-pasteis"></div></div>
+      <div id="sec-sides">     <div class="section-title">🍟 Sides</div>               <div class="items-grid" id="grid-sides"></div></div>
+      <div id="sec-hotcoffee"> <div class="section-title">☕ Hot Coffee</div>          <div class="items-grid" id="grid-hotcoffee"></div></div>
+      <div id="sec-icedcoffee"><div class="section-title">🧊 Iced Coffee</div>         <div class="items-grid" id="grid-icedcoffee"></div></div>
+      <div id="sec-frappe">    <div class="section-title">🥤 Frappe</div>              <div class="items-grid" id="grid-frappe"></div></div>
+      <div id="sec-matcha">    <div class="section-title">🍵 Matcha</div>              <div class="items-grid" id="grid-matcha"></div></div>
+      <div id="sec-tea">       <div class="section-title">🌿 Tea</div>                 <div class="items-grid" id="grid-tea"></div></div>
+      <div id="sec-drinks">    <div class="section-title">🥤 Juices & Smoothies</div>  <div class="items-grid" id="grid-drinks"></div></div>
+    </div>
+  </div>
+</div>
+
+<!-- CART -->
+<div class="page" id="page-cart">
+  <div style="max-width:520px;margin:44px auto;padding:0 24px;">
+    <div style="font-family:'Cormorant Garamond',serif;font-size:38px;font-weight:600;color:var(--white);margin-bottom:24px;">🧺 Your Order</div>
+    <div id="cartFullList" style="margin-bottom:24px;"></div>
+    <div style="background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:20px;">
+      <div style="display:flex;justify-content:space-between;font-family:'Space Mono',monospace;font-size:15px;margin-bottom:16px;">
+        <span>Total</span><strong style="color:var(--accent2);" id="cartTotalFull">£0.00</strong>
+      </div>
+      <input class="name-input" id="clientName" placeholder="Your name (e.g. Maria)">
+
+      <div class="payment-section">
+        <!-- Apple Pay / Google Pay -->
+        <div id="payment-request-button" style="display:none;"></div>
+        <div id="payment-divider" class="payment-divider" style="display:none;">or pay with card</div>
+
+        <!-- Payment tabs -->
+        <div class="payment-tabs" id="paymentTabs">
+          <button class="payment-tab active" onclick="switchPayTab('card')">💳 Card</button>
+          <button class="payment-tab" onclick="switchPayTab('counter')">🏪 Pay at Counter</button>
+        </div>
+
+        <!-- Card payment -->
+        <div id="cardPaySection">
+          <div class="payment-error" id="paymentError"></div>
+          <div class="card-input-wrap" id="cardInputWrap">
+            <div id="card-element"></div>
+          </div>
+          <button class="pay-btn" id="payBtn" onclick="handleCardPayment()">
+            <div class="spinner"></div>
+            <span class="btn-text">🔒 Pay <span id="payBtnAmount">£0.00</span></span>
+          </button>
+          <div class="secure-badge">🔒 Secured by Stripe</div>
+        </div>
+
+        <!-- Pay at counter -->
+        <div id="counterPaySection" style="display:none;">
+          <button class="send-btn" onclick="sendOrderNoPayment()">Send to Counter →</button>
+          <div style="font-size:11px;color:var(--muted);text-align:center;margin-top:8px;">Pay when you collect your order</div>
+        </div>
+      </div>
+    </div>
+    <button onclick="setView('customer')" style="background:none;border:none;color:var(--muted);cursor:pointer;margin-top:16px;font-size:14px;">← Back to menu</button>
+  </div>
+</div>
+
+<!-- STATUS -->
+<div class="page" id="page-status">
+  <div class="status-page">
+    <div class="order-number" id="statusOrderNum">#101</div>
+    <div class="order-label">Order number</div>
+    <div style="font-size:15px;color:var(--muted);margin-bottom:4px;" id="statusClientName"></div>
+    <div class="status-steps" id="statusSteps"></div>
+    <button class="new-order-btn" onclick="newOrder()">New order</button>
+  </div>
+</div>
+
+<!-- COUNTER -->
+<div class="page" id="page-counter">
+  <div class="counter-page">
+    <div class="counter-header">
+      <div class="counter-title">Counter Panel</div>
+      <div class="live-dot">LIVE</div>
+    </div>
+    <div class="orders-grid" id="ordersGrid">
+      <div class="empty-counter"><div class="big">🌿</div><p>Waiting for orders...</p></div>
+    </div>
+  </div>
+</div>
+
+
+<!-- ITEM MODAL -->
+<div class="item-modal-overlay" id="itemModal" onclick="handleModalOverlayClick(event)">
+  <div class="item-modal" style="position:relative;">
+    <button class="modal-close-btn" onclick="closeItemModal()">✕</button>
+    <div class="item-modal-header">
+      <div class="item-modal-emoji" id="modalEmoji">☕</div>
+      <div>
+        <div class="item-modal-title" id="modalName"></div>
+        <div class="item-modal-desc" id="modalDesc"></div>
+        <div class="item-modal-price" id="modalPrice"></div>
+      </div>
+    </div>
+
+    <!-- Allergy / dietary options -->
+    <div class="modal-section-label">Dietary & Allergy Info</div>
+    <div class="options-chips" id="allergyChips">
+      <div class="chip" onclick="toggleChip(this)">🥛 No Dairy</div>
+      <div class="chip" onclick="toggleChip(this)">🌾 Gluten Free</div>
+      <div class="chip" onclick="toggleChip(this)">🌱 Vegan</div>
+      <div class="chip" onclick="toggleChip(this)">🥚 No Egg</div>
+      <div class="chip" onclick="toggleChip(this)">🥜 Nut Allergy</div>
+      <div class="chip" onclick="toggleChip(this)">🧅 No Onion</div>
+      <div class="chip" onclick="toggleChip(this)">🍅 No Tomato</div>
+      <div class="chip" onclick="toggleChip(this)">🧄 No Garlic</div>
+    </div>
+
+    <!-- Drink-specific options (shown only for drinks) -->
+    <div id="drinkOptions" style="display:none;">
+      <div class="modal-section-label">Drink Options</div>
+      <div class="options-chips">
+        <div class="chip" onclick="toggleChip(this)">🩸 No Sugar</div>
+        <div class="chip" onclick="toggleChip(this)">🥛 Oat Milk</div>
+        <div class="chip" onclick="toggleChip(this)">🌰 Almond Milk</div>
+        <div class="chip" onclick="toggleChip(this)">🥥 Coconut Milk</div>
+        <div class="chip" onclick="toggleChip(this)">❄️ Extra Ice</div>
+        <div class="chip" onclick="toggleChip(this)">🌡️ Extra Hot</div>
+        <div class="chip" onclick="toggleChip(this)">💧 Less Water</div>
+        <div class="chip" onclick="toggleChip(this)">☕ Extra Shot</div>
+        <div class="chip" onclick="toggleChip(this)">🍬 Sugar Free Syrup</div>
+        <div class="chip" onclick="toggleChip(this)">🧊 Iced</div>
+      </div>
+    </div>
+
+    <!-- Free notes -->
+    <div class="modal-section-label">Additional Notes</div>
+    <textarea class="notes-input" id="modalNotes" placeholder="e.g. no sauce, extra crispy, allergy to sesame..."></textarea>
+
+    <!-- Quantity -->
+    <div class="qty-modal">
+      <button class="qty-modal-btn" onclick="changeModalQty(-1)">−</button>
+      <span class="qty-modal-num" id="modalQty">1</span>
+      <button class="qty-modal-btn" onclick="changeModalQty(1)">+</button>
+    </div>
+
+    <button class="modal-add-btn" onclick="confirmAddToCart()">
+      Add to Order — <span id="modalBtnPrice">£0.00</span>
+    </button>
+  </div>
+</div>
+
+<!-- PRINT MODAL -->
+<div class="modal-overlay" id="printModal">
+  <div class="print-modal">
+    <div class="print-paper" id="printContent"></div>
+    <div class="modal-actions">
+      <button class="modal-btn close"    onclick="closePrint()">✕ Close</button>
+      <button class="modal-btn print-go" onclick="window.print()">🖨️ Print</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const menu = {
+  breakfast: [
+    { id:1,  name:'Small English Breakfast',      desc:'Egg, cumberland sausage, bacon, grilled tomato, baked beans, toasted sourdough, hash brown', price:7.90,  emoji:'🍳' },
+    { id:2,  name:'Large English Breakfast',       desc:'Two eggs, cumberland sausages, bacon, grilled tomato, mushrooms, baked beans, toasted sourdough, hash brown', price:10.90, emoji:'🍽️' },
+    { id:3,  name:'Bacon Roll',                    desc:'Soft white bap with crispy bacon', price:2.99, emoji:'🥖' },
+    { id:4,  name:'Bacon & Egg Roll',              desc:'Soft white bap with crispy bacon and fried egg', price:3.99, emoji:'🥚' },
+  ],
+  toast: [
+    { id:5,  name:'Golden Cloud',                  desc:'Toast topped with ultra-creamy scrambled eggs and butter', price:6.20, emoji:'🍞' },
+    { id:6,  name:'Golden Cloud Bacon',             desc:'Toast topped with ultra-creamy scrambled eggs and crispy bacon', price:6.90, emoji:'🥓' },
+    { id:7,  name:'Avocado & Roasted Cherry Tomato Toast', desc:'Sourdough toast topped with smashed avocado, grilled cherry tomatoes, Mediterranean herbs and extra virgin olive oil', price:6.90, emoji:'🥑' },
+    { id:8,  name:'Mediterranean Mushroom & Feta Toast',   desc:'Sourdough toast topped with sautéed mushrooms, feta cheese, Mediterranean herbs and extra virgin olive oil', price:7.40, emoji:'🍄' },
+    { id:9,  name:'Avocado & Scrambled Egg',        desc:'Sourdough toast topped with smashed avocado, rocket, creamy scrambled eggs and chili flakes', price:8.90, emoji:'🥑' },
+    { id:10, name:'Crispy Chicken, Beetroot & Fried Egg Toast', desc:'Sourdough toast with crispy fried chicken breast, fresh mozzarella, spinach and beetroot salad, finished with a fried egg', price:8.95, emoji:'🍗' },
+    { id:11, name:'Steak, Beetroot & Fried Egg Toast', desc:'Sourdough toast with thin sliced steak, fresh mozzarella, spinach and beetroot salad, finished with a fried egg', price:9.90, emoji:'🥩' },
+  ],
+  panini: [
+    { id:12, name:'Caprese al Pesto',              desc:'Fresh mozzarella, tomato, basil pesto', price:6.90, emoji:'🧀' },
+    { id:13, name:'Three Cheese',                  desc:'Mozzarella, cheddar, brie and caramelised onion', price:6.95, emoji:'🫕' },
+    { id:14, name:'Italian',                        desc:'Fresh mozzarella, pepperoni, pesto', price:7.90, emoji:'🇮🇹' },
+    { id:15, name:'BBQ Chicken',                   desc:'Grilled chicken, mozzarella, BBQ sauce and caramelised onions', price:7.95, emoji:'🍗' },
+    { id:16, name:'Chicken & Pesto',               desc:'Chicken breast, mozzarella, pesto', price:8.50, emoji:'🌿' },
+    { id:17, name:'Prosciutto & Mozzarella',       desc:'Parma ham, mozzarella, sun-dried tomatoes', price:8.50, emoji:'🥩' },
+    { id:18, name:'Chicken and Avocado',           desc:'Grilled chicken, avocado, mozzarella and tomatoes', price:8.90, emoji:'🥑' },
+    { id:19, name:'Bacon & Brie',                  desc:'Bacon, brie cheese, sun-dried tomatoes, caramelized onion', price:8.90, emoji:'🥓' },
+  ],
+  lunch: [
+    { id:20, name:'Grilled Chicken Thigh Plate',   desc:'Juicy grilled chicken breast, fries and salad', price:11.90, emoji:'🍗' },
+    { id:21, name:'Crispy Chicken Breast Plate',   desc:'Breaded and fried chicken breast, fries and salad', price:11.95, emoji:'🍽️' },
+    { id:22, name:'Rump Steak Plate',              desc:'Grilled rump steak served with chunky chips, fresh salad and peppercorn sauce', price:15.90, emoji:'🥩' },
+    { id:23, name:'Chicken Caesar Salad',          desc:'Add avocado +£1.80 · Add extra chicken +£2.00', price:9.90, emoji:'🥗' },
+  ],
+  pasta: [
+    { id:24, name:'Spaghetti Bolognese',           desc:'Slow-cooked beef tomato sauce', price:8.99, emoji:'🍝' },
+    { id:25, name:'Chicken Lasagne',               desc:'Layers of chicken, tomato sauce and cheese', price:10.90, emoji:'🫕' },
+    { id:26, name:'Beef Lasagne',                  desc:'Classic beef lasagne with tomato sauce and cheese', price:10.90, emoji:'🫕' },
+    { id:27, name:'Melanzane Parmigiana (V)',       desc:'Breaded fried aubergine layered with tomato sauce and parmesan cheese', price:9.90, emoji:'🍆' },
+  ],
+  sides: [
+    { id:28, name:'Fries',                         desc:'Crispy fries with sea salt', price:3.90, emoji:'🍟' },
+    { id:29, name:'Garlic Bread',                  desc:'Warm pizza bread topped with garlic butter', price:3.95, emoji:'🥖' },
+    { id:30, name:'Garlic Bread with Mozzarella',  desc:'Warm pizza bread topped with melted mozzarella and garlic butter', price:4.90, emoji:'🧀' },
+    { id:31, name:'Parmesan Fries',                desc:'Fries topped with Parmesan', price:4.90, emoji:'🍟' },
+    { id:32, name:'Calabresa Sausage with Onion & Olives', desc:'Calabresa sausage served with onions and olives', price:5.95, emoji:'🌭' },
+  ],
+  burgers: [
+    { id:33, name:'Cheeseburger',                  desc:'Beef patty, melted cheese and grilled onions. Served with fries', price:8.50, emoji:'🍔' },
+    { id:34, name:'Chicken Burger',                desc:'Grilled chicken breast, melted cheese and grilled onions. Served with fries', price:8.50, emoji:'🍗' },
+    { id:35, name:"Caffini's Burger",              desc:'Beef patty, melted cheese, bacon, calabresa sausage, ham, fried egg, lettuce and tomato. Served with fries', price:14.50, emoji:'🏆' },
+  ],
+  pasteis: [
+    { id:36, name:'Brazilian Pastel — Beef',       desc:'Traditional Brazilian crispy pastry with beef filling', price:6.80, emoji:'🥟' },
+    { id:37, name:'Brazilian Pastel — Beef & Cheese', desc:'Traditional Brazilian crispy pastry with beef and cheese', price:6.80, emoji:'🥟' },
+    { id:38, name:'Brazilian Pastel — Chicken',    desc:'Traditional Brazilian crispy pastry with chicken filling', price:6.80, emoji:'🥟' },
+    { id:39, name:'Brazilian Pastel — Chicken & Cheese', desc:'Traditional Brazilian crispy pastry with chicken and cheese', price:6.80, emoji:'🥟' },
+    { id:40, name:'Brazilian Pastel — Calabresa',  desc:'Traditional Brazilian crispy pastry with calabresa sausage', price:6.80, emoji:'🥟' },
+    { id:41, name:'Brazilian Pastel — Pizza',      desc:'Traditional Brazilian crispy pastry with ham, cheese and tomato', price:6.80, emoji:'🥟' },
+    { id:42, name:'Brazilian Pastel — Heart of Palm (V)', desc:'Traditional Brazilian crispy pastry, vegetarian', price:6.00, emoji:'🌿' },
+    { id:43, name:'Brazilian Pastel — Cheese',     desc:'Traditional Brazilian crispy pastry with cheese', price:6.00, emoji:'🧀' },
+  ],
+  pizza: [
+    { id:44, name:'Margherita (Veg)',              desc:'Tomato sauce, mozzarella, fresh basil, olive oil', price:10.90, emoji:'🍕' },
+    { id:45, name:'Pepperoni',                     desc:'Tomato sauce, mozzarella, pepperoni', price:12.00, emoji:'🍕' },
+    { id:46, name:'Diavola',                       desc:'Tomato sauce, mozzarella, pepperoni, jalapeños', price:12.40, emoji:'🌶️' },
+    { id:47, name:'Mushroom Pizza (Veg)',           desc:'Mixed mushrooms, fresh mozzarella, truffle oil', price:13.90, emoji:'🍄' },
+    { id:48, name:'Hawaiian',                      desc:'Tomato sauce, mozzarella, ham and pineapple', price:13.90, emoji:'🍍' },
+    { id:49, name:'Bacon & Onion',                 desc:'Tomato sauce, mozzarella, bacon and onion', price:13.95, emoji:'🥓' },
+    { id:50, name:'4 Formaggi',                    desc:'Mozzarella, parmesan, brie, blue cheese', price:14.90, emoji:'🧀' },
+    { id:51, name:'Prosciutto & Rocket',           desc:'Tomato sauce, Parma ham, rocket, parmesan, cherry tomato, olive oil', price:14.95, emoji:'🥗' },
+    { id:52, name:'Chicken with Catupiry',         desc:'Shredded chicken, mozzarella, tomato sauce, sweet corn, catupiry cheese', price:15.90, emoji:'🍗' },
+    { id:53, name:'Calabresa',                     desc:'Tomato sauce, mozzarella, calabresa sausage and onions', price:16.90, emoji:'🌭' },
+    { id:54, name:'Portuguesa',                    desc:'Tomato sauce, mozzarella, calabresa sausage, onions, peppers, sweet corn, boiled egg and olives', price:17.90, emoji:'🍕' },
+    { id:55, name:'Strawberry & Nutella Pizza (4 slices)', desc:'Pizza dough topped with Nutella and strawberry — 4 slices', price:8.90, emoji:'🍓' },
+    { id:56, name:'Strawberry & Nutella Pizza (8 slices)', desc:'Pizza dough topped with Nutella and strawberry — 8 slices', price:14.99, emoji:'🍓' },
+  ],
+  hotcoffee: [
+    { id:57, name:'Latte',                         desc:'Espresso with steamed milk', price:3.50, emoji:'☕' },
+    { id:58, name:'Pistachio Latte',               desc:'Espresso with steamed milk and pistachio syrup', price:3.80, emoji:'☕' },
+    { id:59, name:'Cappuccino',                    desc:'Espresso with steamed milk and creamy foam', price:3.50, emoji:'☕' },
+    { id:60, name:'Americano',                     desc:'Espresso with hot water', price:3.00, emoji:'☕' },
+    { id:61, name:'Flat White',                    desc:'Double espresso with steamed milk', price:3.50, emoji:'☕' },
+    { id:62, name:'Espresso',                      desc:'Pure short-pulled coffee, intense and full-bodied', price:2.20, emoji:'☕' },
+    { id:63, name:'Macchiato',                     desc:'Espresso with a dash of milk foam', price:2.50, emoji:'☕' },
+    { id:64, name:'Cortado',                       desc:'Espresso with equal parts steamed milk', price:3.00, emoji:'☕' },
+    { id:65, name:'Mocha',                         desc:'Espresso with chocolate syrup and steamed milk', price:3.80, emoji:'☕' },
+    { id:66, name:'Hot Chocolate',                 desc:'Rich and creamy hot chocolate', price:3.80, emoji:'🍫' },
+    { id:67, name:'Affogato Freddo',               desc:'Espresso poured over ice cream', price:4.50, emoji:'🍨' },
+  ],
+  icedcoffee: [
+    { id:68, name:'Caramel Cream Iced Latte',      desc:'Iced latte with caramel cream', price:5.80, emoji:'🧊' },
+    { id:69, name:'Pistachio Iced Latte',          desc:'Iced latte with pistachio syrup', price:5.80, emoji:'🧊' },
+    { id:70, name:'Dubai Chocolate',               desc:'Iced coffee with Dubai chocolate flavour', price:5.80, emoji:'🍫' },
+    { id:71, name:'Pumpkin Spice Iced Latte',      desc:'Iced latte with pumpkin spice', price:5.80, emoji:'🎃' },
+    { id:72, name:'Oat Iced Latte',               desc:'Iced latte with oat milk', price:4.50, emoji:'🧊' },
+    { id:73, name:'Iced Americano',               desc:'Espresso over ice with cold water', price:4.80, emoji:'🧊' },
+    { id:74, name:'Iced Mocha',                   desc:'Iced espresso with chocolate and milk', price:4.50, emoji:'🍫' },
+    { id:75, name:'Iced Latte',                   desc:'Espresso with cold milk over ice', price:4.00, emoji:'🧊' },
+  ],
+  frappe: [
+    { id:76, name:'Biscoff Frappe',               desc:'Blended iced coffee with Biscoff', price:5.20, emoji:'🥤' },
+    { id:77, name:'Oreo Frappe',                  desc:'Blended iced coffee with Oreo', price:5.20, emoji:'🥤' },
+    { id:78, name:'Pistachio Frappe',             desc:'Blended iced coffee with pistachio', price:5.45, emoji:'🥤' },
+  ],
+  matcha: [
+    { id:79, name:'Matcha Latte (Hot)',            desc:'Hot matcha with steamed milk', price:3.60, emoji:'🍵' },
+    { id:80, name:'Vanilla Matcha Latte (Hot)',    desc:'Hot matcha with vanilla and steamed milk', price:3.80, emoji:'🍵' },
+    { id:81, name:'Honey Matcha Latte (Hot)',      desc:'Hot matcha with honey and steamed milk', price:3.80, emoji:'🍵' },
+    { id:82, name:'Iced Matcha Latte',            desc:'Matcha with cold milk over ice', price:4.50, emoji:'🍵' },
+    { id:83, name:'Strawberry Matcha Latte',      desc:'Iced matcha with strawberry', price:5.80, emoji:'🍓' },
+    { id:84, name:'Iced Vanilla Matcha',          desc:'Iced matcha with vanilla', price:4.80, emoji:'🍵' },
+    { id:85, name:'Matcha Smoothie',              desc:'Blended matcha smoothie', price:5.20, emoji:'🥤' },
+    { id:86, name:'Iced Coconut Matcha',          desc:'Iced matcha with coconut milk', price:5.50, emoji:'🥥' },
+    { id:87, name:'Matcha & White Chocolate',     desc:'Matcha blended with white chocolate', price:5.50, emoji:'🍫' },
+  ],
+  tea: [
+    { id:88, name:"Chá Matte (Brazilian Tea)",    desc:'Traditional Brazilian mate tea', price:2.50, emoji:'🍵' },
+    { id:89, name:'English Breakfast Tea',        desc:'Classic English breakfast tea', price:2.50, emoji:'🍵' },
+    { id:90, name:'Green Tea',                    desc:'Light and refreshing green tea', price:2.50, emoji:'🍵' },
+    { id:91, name:'Camomile',                     desc:'Soft and calming camomile tea', price:2.50, emoji:'🌼' },
+    { id:92, name:'Mint Tea',                     desc:'Fresh and soothing mint tea', price:2.50, emoji:'🌿' },
+  ],
+  drinks: [
+    { id:93, name:'Freshly Squeezed Orange Juice', desc:'Fresh squeezed orange juice', price:5.00, emoji:'🍊' },
+    { id:94, name:'Pineapple Juice',              desc:'Fresh pineapple juice', price:4.00, emoji:'🍍' },
+    { id:95, name:'Pineapple Juice & Mint',       desc:'Fresh pineapple juice with mint', price:4.00, emoji:'🍃' },
+    { id:96, name:'Passionfruit Juice',           desc:'Fresh passionfruit juice', price:5.00, emoji:'🌺' },
+    { id:97, name:'Lemon Juice',                  desc:'Fresh lemon juice', price:4.00, emoji:'🍋' },
+    { id:98, name:'Apple Juice (Carton)',         desc:'Apple juice carton', price:2.50, emoji:'🍎' },
+    { id:99, name:'Orange Juice (Carton)',        desc:'Orange juice carton', price:2.50, emoji:'🍊' },
+    { id:100,name:'Strawberry Smoothie',          desc:'Fresh strawberry smoothie', price:5.00, emoji:'🍓' },
+    { id:101,name:'Strawberry & Banana Smoothie', desc:'Fresh strawberry and banana smoothie', price:5.00, emoji:'🍌' },
+    { id:102,name:'Avocado Smoothie',             desc:'Creamy avocado smoothie (batida de abacate)', price:6.00, emoji:'🥑' },
+  ],
+};
+
+let cart=[], orders=[], orderCounter=100, currentOrderId=null, statusInterval=null;
+
+function getAllItems(){ return Object.values(menu).flat(); }
+function findItem(id){ return getAllItems().find(i=>i.id===id); }
+
+const drinkCategories = ['hotcoffee','icedcoffee','frappe','matcha','tea','drinks'];
+
+function renderMenu(){
+  Object.entries(menu).forEach(([cat,items])=>{
+    const grid=document.getElementById('grid-'+cat);
+    if(!grid) return;
+    grid.innerHTML=items.map(item=>`
+      <div class="item-card" onclick="openItemModal(${item.id},'${cat}')">
+        <div class="item-img">${item.emoji}</div>
+        <div class="item-info">
+          <div class="item-name">${item.name}</div>
+          <div class="item-desc">${item.desc}</div>
+          <div class="item-footer">
+            <span class="item-price">£${item.price.toFixed(2)}</span>
+            <button class="add-btn" onclick="event.stopPropagation();openItemModal(${item.id},'${cat}')">+</button>
+          </div>
+        </div>
+      </div>`).join('');
+  });
+}
+
+let modalItemId = null;
+let modalQtyVal = 1;
+let modalCat = '';
+
+function openItemModal(id, cat){
+  const item = findItem(id);
+  modalItemId = id;
+  modalQtyVal = 1;
+  modalCat = cat;
+  document.getElementById('modalEmoji').textContent = item.emoji;
+  document.getElementById('modalName').textContent = item.name;
+  document.getElementById('modalDesc').textContent = item.desc;
+  document.getElementById('modalPrice').textContent = `£${item.price.toFixed(2)}`;
+  document.getElementById('modalNotes').value = '';
+  document.getElementById('modalQty').textContent = '1';
+  document.getElementById('modalBtnPrice').textContent = `£${item.price.toFixed(2)}`;
+  // Reset chips
+  document.querySelectorAll('.chip').forEach(c => c.classList.remove('selected'));
+  // Show/hide drink options
+  document.getElementById('drinkOptions').style.display =
+    drinkCategories.includes(cat) ? 'block' : 'none';
+  document.getElementById('itemModal').classList.add('open');
+}
+
+function closeItemModal(){
+  document.getElementById('itemModal').classList.remove('open');
+}
+
+function handleModalOverlayClick(e){
+  if(e.target.id==='itemModal') closeItemModal();
+}
+
+function toggleChip(el){
+  el.classList.toggle('selected');
+}
+
+function changeModalQty(delta){
+  modalQtyVal = Math.max(1, modalQtyVal + delta);
+  document.getElementById('modalQty').textContent = modalQtyVal;
+  const item = findItem(modalItemId);
+  document.getElementById('modalBtnPrice').textContent = `£${(item.price * modalQtyVal).toFixed(2)}`;
+}
+
+function getSelectedChips(){
+  return [...document.querySelectorAll('.chip.selected')].map(c => c.textContent.trim()).join(', ');
+}
+
+function confirmAddToCart(){
+  const item = findItem(modalItemId);
+  const notes = document.getElementById('modalNotes').value.trim();
+  const options = getSelectedChips();
+  const combined = [options, notes].filter(Boolean).join(' · ');
+  // Each entry with notes is always a separate line
+  if(combined){
+    cart.push({id: modalItemId, qty: modalQtyVal, notes: combined});
+  } else {
+    const ex = cart.find(c => c.id === modalItemId && !c.notes);
+    if(ex) ex.qty += modalQtyVal;
+    else cart.push({id: modalItemId, qty: modalQtyVal, notes: ''});
+  }
+  updateCartBadge();
+  showToast(`${item.emoji} ${item.name} added!`);
+  closeItemModal();
+}
+
+function addToCart(id){
+  openItemModal(id, '');
+}
+
+function updateCartBadge(){
+  document.getElementById('cartBadge').textContent=cart.reduce((s,c)=>s+c.qty,0);
+}
+
+function getCartTotal(){
+  return cart.reduce((s,c)=>{const item=findItem(c.id);return s+item.price*c.qty;},0);
+}
+
+function renderCartFull(){
+  const list=document.getElementById('cartFullList');
+  if(!cart.length){
+    list.innerHTML='<div style="text-align:center;color:var(--muted);padding:40px 0;">No items yet</div>';
+    document.getElementById('cartTotalFull').textContent='£0.00';
+    return;
+  }
+  list.innerHTML=cart.map((c,idx)=>{
+    const item=findItem(c.id);
+    return `
+      <div style="padding:14px 0;border-bottom:1px solid var(--border);">
+        <div style="display:flex;gap:12px;align-items:center;">
+          <span style="font-size:28px;">${item.emoji}</span>
+          <div style="flex:1;">
+            <div style="font-weight:600;color:var(--white);">${item.name}</div>
+            <div style="font-size:12px;color:var(--muted);">£${item.price.toFixed(2)} each</div>
+            ${c.notes ? `<div class="notes-tag">📝 ${c.notes}</div>` : ''}
+          </div>
+          <div style="display:flex;align-items:center;gap:8px;">
+            <button class="qty-btn" onclick="changeQtyIdx(${idx},-1)">−</button>
+            <span class="qty-num">${c.qty}</span>
+            <button class="qty-btn" onclick="changeQtyIdx(${idx},1)">+</button>
+          </div>
+          <div style="font-family:'Space Mono',monospace;color:var(--accent2);font-size:14px;min-width:70px;text-align:right;">
+            £${(item.price*c.qty).toFixed(2)}
+          </div>
+        </div>
+      </div>`;
+  }).join('');
+  document.getElementById('cartTotalFull').textContent=`£${getCartTotal().toFixed(2)}`;
+}
+
+function changeQty(id,delta){
+  const idx=cart.findIndex(c=>c.id===id);
+  if(idx===-1) return;
+  changeQtyIdx(idx, delta);
+}
+
+function changeQtyIdx(idx,delta){
+  if(idx===-1||idx>=cart.length) return;
+  cart[idx].qty+=delta;
+  if(cart[idx].qty<=0) cart.splice(idx,1);
+  updateCartBadge();
+  renderCartFull();
+}
+
+function sendOrder(){
+  if(!cart.length) return showToast('Add items to your order!');
+  const name=document.getElementById('clientName').value.trim()||'Cliente';
+  orderCounter++;
+  const order={
+    id:orderCounter, client:name,
+    items:cart.map(c=>({...findItem(c.id),qty:c.qty,notes:c.notes||''})),
+    total:getCartTotal(), status:'novo',
+    time:new Date().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'}),
+    ts:Date.now()
+  };
+  orders.unshift(order);
+  currentOrderId=order.id;
+  cart=[];
+  updateCartBadge();
+  showStatus(order);
+  setTimeout(()=>openPrint(order.id),600);
+}
+
+function showStatus(order){
+  setView('status');
+  document.getElementById('statusOrderNum').textContent='#'+order.id;
+  document.getElementById('statusClientName').textContent=`Hello, ${order.client}! ☕`;
+  // Build steps once
+  const steps=[
+    {key:'novo',    icon:'📋', name:'Order received', desc:'Your order has arrived at the counter'},
+    {key:'preparo', icon:'👩‍🍳', name:'In preparation', desc:'We are preparing it with care'},
+    {key:'pronto',  icon:'✅', name:'Ready!', desc:'Pick up at the counter — enjoy!'},
+  ];
+  const stepsEl=document.getElementById('statusSteps');
+  if(!stepsEl.children.length){
+    stepsEl.innerHTML=steps.map((s,i)=>`
+      <div class="step" id="step-${i}">
+        <div class="step-dot">${s.icon}</div>
+        <div style="padding-top:8px;">
+          <div class="step-name">${s.name}</div>
+          <div class="step-desc">${s.desc}</div>
+        </div>
+      </div>`).join('');
+  }
+  updateStatusSteps(order.status);
+  if(statusInterval) clearInterval(statusInterval);
+  statusInterval=setInterval(()=>{
+    const o=orders.find(o=>o.id===currentOrderId);
+    if(o) updateStatusSteps(o.status);
+  },2000);
+}
+
+function updateStatusSteps(status){
+  const order=['novo','preparo','pronto'];
+  const ci=order.indexOf(status);
+  [0,1,2].forEach(i=>{
+    const el=document.getElementById('step-'+i);
+    if(!el) return;
+    el.className='step '+(i<ci?'done':i===ci?'current':'');
+  });
+}
+
+function renderStatusSteps(status){ updateStatusSteps(status); }
+
+function newOrder(){
+  if(statusInterval) clearInterval(statusInterval);
+  setView('customer');
+}
+
+function buildOrderCard(o){
+  return `<div class="order-card status-${o.status}" id="card-${o.id}">
+      <div class="order-card-head">
+        <div>
+          <div class="order-num-badge">#${o.id}</div>
+          ${o.paymentStatus==='paid' ? '<span style="background:rgba(76,175,112,.2);color:#4caf70;border:1px solid #4caf70;border-radius:6px;font-size:9px;font-weight:700;padding:2px 6px;letter-spacing:1px;">✓ PAID</span>' : '<span style="background:rgba(245,166,35,.15);color:#f5a623;border:1px solid #f5a623;border-radius:6px;font-size:9px;font-weight:700;padding:2px 6px;letter-spacing:1px;">PAY AT COUNTER</span>'}
+          <div class="order-client">${o.client}</div>
+          <div class="order-time">${o.time}</div>
+        </div>
+        <div class="status-chip chip-${o.status}">
+          ${o.status==='novo'?'NEW':o.status==='preparo'?'IN PREP':'READY'}
+        </div>
+      </div>
+      <div class="order-items-list">
+        ${o.items.map(i=>`
+          <div class="order-line" style="flex-direction:column;align-items:flex-start;gap:2px;">
+            <div style="display:flex;justify-content:space-between;width:100%;">
+              <span><span class="qty">${i.qty}x</span>${i.name}</span>
+              <span style="color:var(--muted);">£${(i.price*i.qty).toFixed(2)}</span>
+            </div>
+            ${i.notes ? `<div style="font-size:11px;color:var(--accent2);font-style:italic;">📝 ${i.notes}</div>` : ''}
+          </div>`).join('')}
+        <div style="margin-top:10px;padding-top:8px;border-top:1px solid var(--border);display:flex;justify-content:space-between;font-family:'Space Mono',monospace;font-size:12px;">
+          <span>Total</span>
+          <strong style="color:var(--accent2);">£${o.total.toFixed(2)}</strong>
+        </div>
+      </div>
+      <div class="order-card-foot" id="foot-${o.id}">
+        ${o.status==='novo'?`<button class="action-btn btn-preparo" onclick="advanceOrder(${o.id})">🔥 In Progress</button>`:''}
+        ${o.status==='preparo'?`<button class="action-btn btn-pronto" onclick="advanceOrder(${o.id})">✅ Ready!</button>`:''}
+        ${o.status==='pronto'?`<button class="action-btn btn-done" disabled>✅ Ready</button>`:''}
+        <button class="action-btn btn-print" onclick="openPrint(${o.id})">🖨️ Print</button>
+      </div>
+    </div>`;
+}
+
+function renderCounter(){
+  const grid=document.getElementById('ordersGrid');
+  const active=orders.filter(o=>o.status!=='entregue');
+  if(!active.length){
+    grid.innerHTML=`<div class="empty-counter"><div class="big">🌿</div><p>Waiting for orders...</p></div>`;
+    return;
+  }
+  // Add new cards without rebuilding existing ones
+  active.forEach(o=>{
+    let card=document.getElementById('card-'+o.id);
+    if(!card){
+      grid.innerHTML=''; // clear empty state if present
+      const div=document.createElement('div');
+      div.innerHTML=buildOrderCard(o);
+      grid.appendChild(div.firstElementChild);
+    } else {
+      // Only update status-dependent parts (chip + footer)
+      card.className=`order-card status-${o.status}`;
+      const chip=card.querySelector('.status-chip');
+      if(chip){
+        chip.className=`status-chip chip-${o.status}`;
+        chip.textContent=o.status==='novo'?'NEW':o.status==='preparo'?'IN PREP':'READY';
+      }
+      const foot=document.getElementById('foot-'+o.id);
+      if(foot){
+        const newFoot=`${o.status==='novo'?`<button class="action-btn btn-preparo" onclick="advanceOrder(${o.id})">🔥 In Progress</button>`:''}
+          ${o.status==='preparo'?`<button class="action-btn btn-pronto" onclick="advanceOrder(${o.id})">✅ Ready!</button>`:''}
+          ${o.status==='pronto'?`<button class="action-btn btn-done" disabled>✅ Ready</button>`:''}
+          <button class="action-btn btn-print" onclick="openPrint(${o.id})">🖨️ Print</button>`;
+        if(foot.innerHTML.trim()!==newFoot.trim()) foot.innerHTML=newFoot;
+      }
+    }
+  });
+  // Remove cards no longer in active list
+  grid.querySelectorAll('.order-card').forEach(card=>{
+    const id=parseInt(card.id.replace('card-',''));
+    if(!active.find(o=>o.id===id)) card.remove();
+  });
+}
+
+function advanceOrder(id){
+  const o=orders.find(o=>o.id===id);
+  if(!o) return;
+  if(o.status==='novo') o.status='preparo';
+  else if(o.status==='preparo') o.status='pronto';
+  renderCounter();
+  // Sync to Supabase
+  updateOrderStatusInSupabase(id, o.status);
+}
+
+function openPrint(id){
+  const o=orders.find(o=>o.id===id);
+  if(!o) return;
+  document.getElementById('printContent').innerHTML=`
+    <div class="print-logo">CAFFINI</div>
+    <div class="print-sub">Cafeteria — Order #${o.id}</div>
+    <div style="text-align:center;font-size:10px;color:#999;margin-bottom:14px;">${new Date().toLocaleDateString('en-GB')} — ${o.time}</div>
+    <hr class="print-divider">
+    <div class="print-row"><strong>Customer:</strong><span>${o.client}</span></div>
+    <hr class="print-divider">
+    ${o.items.map(i=>`
+      <div class="print-row">
+        <span>${i.qty}x ${i.name}</span>
+        <span>£${(i.price*i.qty).toFixed(2)}</span>
+      </div>
+      ${i.notes ? `<div style="font-size:10px;color:#888;padding-left:16px;margin-bottom:2px;">↳ ${i.notes}</div>` : ''}`).join('')}
+    <hr class="print-divider">
+    <div class="print-total-row"><span>TOTAL</span><span>£${o.total.toFixed(2)}</span></div>
+    <div class="print-footer-text">Thank you for visiting! 🌿<br>Pick up at the counter when called.</div>
+  `;
+  document.getElementById('printModal').classList.add('open');
+}
+
+function closePrint(){
+  document.getElementById('printModal').classList.remove('open');
+}
+
+function setView(view){
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.view-btn').forEach(b=>b.classList.remove('active'));
+  if(view==='customer'){
+    document.getElementById('page-customer').classList.add('active');
+    document.querySelectorAll('.view-btn')[0].classList.add('active');
+  } else if(view==='cart'){
+    renderCartFull();
+    document.getElementById('page-cart').classList.add('active');
+    setTimeout(()=>{ initStripe(); updatePaymentAmount(); }, 100);
+  } else if(view==='status'){
+    document.getElementById('page-status').classList.add('active');
+  } else if(view==='counter'){
+    renderCounter();
+    document.getElementById('page-counter').classList.add('active');
+    document.querySelectorAll('.view-btn')[1].classList.add('active');
+    // Load today's orders from Supabase
+    loadOrdersFromSupabase();
+    if(!window._counterInterval){
+      window._counterInterval=setInterval(renderCounter,3000);
+    }
+  }
+}
+
+function scrollCat(cat){
+  document.querySelectorAll('.cat-item').forEach(el=>{
+    el.classList.toggle('active',el.dataset.cat===cat);
+  });
+  document.getElementById('sec-'+cat).scrollIntoView({behavior:'smooth',block:'start'});
+}
+
+function showToast(msg){
+  const t=document.getElementById('toast');
+  t.textContent=msg;
+  t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'),2200);
+}
+
+renderMenu();
+
+
+// ─── SUPABASE INTEGRATION ─────────────────────────────────────────
+const SUPABASE_URL = 'https://zjmgbyizyxjteektnyfg.supabase.co';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpqbWdieWl6eXhqdGVla3RueWZnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY4MDA2MTQsImV4cCI6MjA5MjM3NjYxNH0.AcU9Jd-j-hnwDvWwzsskZqlTUI9nvVuDMGphjdzDGxM';
+
+let supabaseClient = null;
+
+function initSupabase() {
+  try {
+    supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+    setupRealtimeSubscription();
+    console.log('✅ Supabase connected');
+  } catch(e) {
+    console.warn('Supabase not available — running in local mode', e);
+  }
+}
+
+// Save order to Supabase
+async function saveOrderToSupabase(order) {
+  if (!supabaseClient) return null;
+  try {
+    const { data, error } = await supabaseClient
+      .from('orders')
+      .insert([{
+        order_number:   order.id,
+        client_name:    order.client,
+        items:          order.items,
+        total:          order.total,
+        status:         order.status,
+        payment_status: order.paymentStatus || 'pending',
+        notes:          order.items.map(i => i.notes).filter(Boolean).join('; ')
+      }])
+      .select()
+      .single();
+
+    if (error) { console.error('Supabase insert error:', error); return null; }
+    console.log('✅ Order saved to Supabase:', data.id);
+    return data;
+  } catch(e) {
+    console.error('Supabase error:', e);
+    return null;
+  }
+}
+
+// Update order status in Supabase
+async function updateOrderStatusInSupabase(orderNumber, newStatus) {
+  if (!supabaseClient) return;
+  try {
+    const { error } = await supabaseClient
+      .from('orders')
+      .update({ status: newStatus })
+      .eq('order_number', orderNumber);
+
+    if (error) console.error('Supabase update error:', error);
+    else console.log(`✅ Order #${orderNumber} status updated to ${newStatus}`);
+  } catch(e) {
+    console.error('Supabase error:', e);
+  }
+}
+
+// Realtime subscription — counter panel updates automatically
+function setupRealtimeSubscription() {
+  if (!supabaseClient) return;
+  try {
+    supabaseClient
+      .channel('orders-channel')
+      .on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: 'orders'
+      }, (payload) => {
+        console.log('📡 Realtime update:', payload);
+        handleRealtimeUpdate(payload);
+      })
+      .subscribe();
+    console.log('✅ Realtime subscription active');
+  } catch(e) {
+    console.warn('Realtime not available:', e);
+  }
+}
+
+function handleRealtimeUpdate(payload) {
+  if (payload.eventType === 'INSERT') {
+    // New order arrived — add to local orders if not already there
+    const newOrder = payload.new;
+    const exists = orders.find(o => o.id === newOrder.order_number);
+    if (!exists) {
+      orders.unshift({
+        id:            newOrder.order_number,
+        client:        newOrder.client_name,
+        items:         newOrder.items,
+        total:         parseFloat(newOrder.total),
+        status:        newOrder.status,
+        paymentStatus: newOrder.payment_status,
+        time:          new Date(newOrder.created_at).toLocaleTimeString('en-GB', {hour:'2-digit', minute:'2-digit'}),
+        ts:            Date.now()
+      });
+      renderCounter();
+      // Play notification sound if on counter page
+      playNotificationSound();
+    }
+  } else if (payload.eventType === 'UPDATE') {
+    // Status updated — sync local order
+    const updated = payload.new;
+    const order = orders.find(o => o.id === updated.order_number);
+    if (order) {
+      order.status = updated.status;
+      renderCounter();
+      // If customer is watching status page, update it
+      if (currentOrderId === updated.order_number) {
+        updateStatusSteps(updated.status);
+      }
+    }
+  }
+}
+
+// Load today's orders from Supabase (for counter panel on refresh)
+async function loadOrdersFromSupabase() {
+  if (!supabaseClient) return;
+  try {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const { data, error } = await supabaseClient
+      .from('orders')
+      .select('*')
+      .gte('created_at', today.toISOString())
+      .neq('status', 'entregue')
+      .order('created_at', { ascending: false });
+
+    if (error) { console.error('Supabase load error:', error); return; }
+
+    if (data && data.length) {
+      orders = data.map(o => ({
+        id:            o.order_number,
+        client:        o.client_name,
+        items:         o.items,
+        total:         parseFloat(o.total),
+        status:        o.status,
+        paymentStatus: o.payment_status,
+        time:          new Date(o.created_at).toLocaleTimeString('en-GB', {hour:'2-digit', minute:'2-digit'}),
+        ts:            new Date(o.created_at).getTime()
+      }));
+      // Set order counter to max existing
+      if (orders.length) {
+        orderCounter = Math.max(...orders.map(o => o.id));
+      }
+      console.log(`✅ Loaded ${orders.length} orders from Supabase`);
+      renderCounter();
+    }
+  } catch(e) {
+    console.error('Load orders error:', e);
+  }
+}
+
+// Notification sound for new orders
+function playNotificationSound() {
+  try {
+    const ctx = new AudioContext();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.frequency.setValueAtTime(880, ctx.currentTime);
+    osc.frequency.setValueAtTime(1100, ctx.currentTime + 0.1);
+    gain.gain.setValueAtTime(0.3, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.4);
+    osc.start(ctx.currentTime);
+    osc.stop(ctx.currentTime + 0.4);
+  } catch(e) {}
+}
+
+// Initialise on load
+window.addEventListener('load', () => {
+  initSupabase();
+});
+
+// ─── STRIPE INTEGRATION ───────────────────────────────────────────
+const STRIPE_PK = 'pk_test_51TOk1PPB4VNSVqkiEuZIQaDPmJ5GJ6NRNnmq687YwbZjgW1lZ7G1ht2XNwwwS68YACPLgPuaj88xA9OljnKFKCDQ00Ca4LLgAP';
+let stripe, cardElement, paymentRequest;
+let stripeReady = false;
+
+function initStripe() {
+  if (stripeReady) return;
+  stripe = Stripe(STRIPE_PK);
+  const elements = stripe.elements({
+    appearance: {
+      theme: 'night',
+      variables: {
+        colorPrimary: '#6abf82',
+        colorBackground: '#0d1f14',
+        colorText: '#f5f5f0',
+        colorDanger: '#ef9a9a',
+        fontFamily: 'DM Sans, sans-serif',
+        borderRadius: '8px',
+      }
+    }
+  });
+
+  cardElement = elements.create('card', {
+    style: {
+      base: {
+        color: '#f5f5f0',
+        fontFamily: 'DM Sans, sans-serif',
+        fontSize: '15px',
+        '::placeholder': { color: '#7aaa88' }
+      }
+    }
+  });
+
+  cardElement.mount('#card-element');
+  cardElement.on('focus', () => document.getElementById('cardInputWrap').classList.add('focused'));
+  cardElement.on('blur',  () => document.getElementById('cardInputWrap').classList.remove('focused'));
+  cardElement.on('change', e => {
+    const errEl = document.getElementById('paymentError');
+    if (e.error) { errEl.textContent = e.error.message; errEl.style.display = 'block'; }
+    else errEl.style.display = 'none';
+  });
+
+  // Apple Pay / Google Pay
+  const total = Math.round(getCartTotal() * 100);
+  paymentRequest = stripe.paymentRequest({
+    country: 'GB',
+    currency: 'gbp',
+    total: { label: 'CAFFINI Order', amount: total || 100 },
+    requestPayerName: true,
+    requestPayerEmail: false,
+  });
+
+  const prButton = elements.create('paymentRequestButton', {
+    paymentRequest,
+    style: { paymentRequestButton: { theme: 'dark', height: '48px', borderRadius: '10px' } }
+  });
+
+  paymentRequest.canMakePayment().then(result => {
+    if (result) {
+      document.getElementById('payment-request-button').style.display = 'block';
+      document.getElementById('payment-divider').style.display = 'flex';
+      prButton.mount('#payment-request-button');
+    }
+  });
+
+  paymentRequest.on('paymentmethod', async (ev) => {
+    const clientSecret = await createPaymentIntent();
+    if (!clientSecret) { ev.complete('fail'); return; }
+    const { error } = await stripe.confirmCardPayment(clientSecret, { payment_method: ev.paymentMethod.id }, { handleActions: false });
+    if (error) { ev.complete('fail'); showPaymentError(error.message); }
+    else { ev.complete('success'); onPaymentSuccess(); }
+  });
+
+  stripeReady = true;
+}
+
+async function createPaymentIntent() {
+  // In production this calls your backend
+  // For now returns a simulated client secret for test mode
+  // You will replace this URL with your Railway backend endpoint
+  try {
+    const res = await fetch('/api/create-payment-intent', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ amount: Math.round(getCartTotal() * 100), currency: 'gbp' })
+    });
+    const data = await res.json();
+    return data.clientSecret;
+  } catch(e) {
+    // Demo mode — simulate success for now
+    console.warn('Backend not connected yet — demo mode');
+    return null;
+  }
+}
+
+async function handleCardPayment() {
+  if (!cart.length) return showToast('Add items to your order!');
+  const name = document.getElementById('clientName').value.trim();
+  if (!name) { showToast('Please enter your name'); return; }
+
+  const btn = document.getElementById('payBtn');
+  const errEl = document.getElementById('paymentError');
+  btn.classList.add('loading');
+  btn.disabled = true;
+  errEl.style.display = 'none';
+
+  const clientSecret = await createPaymentIntent();
+
+  if (!clientSecret) {
+    // Demo mode — proceed without real payment
+    btn.classList.remove('loading');
+    btn.disabled = false;
+    showToast('⚠️ Demo mode — backend not connected yet');
+    sendOrderNoPayment();
+    return;
+  }
+
+  const { error, paymentIntent } = await stripe.confirmCardPayment(clientSecret, {
+    payment_method: { card: cardElement, billing_details: { name } }
+  });
+
+  btn.classList.remove('loading');
+  btn.disabled = false;
+
+  if (error) {
+    errEl.textContent = error.message;
+    errEl.style.display = 'block';
+  } else if (paymentIntent.status === 'succeeded') {
+    onPaymentSuccess();
+  }
+}
+
+function onPaymentSuccess() {
+  sendOrderAfterPayment('paid');
+}
+
+function sendOrderNoPayment() {
+  if (!cart.length) return showToast('Add items to your order!');
+  const name = document.getElementById('clientName').value.trim() || 'Customer';
+  sendOrderAfterPayment('pending', name);
+}
+
+async function sendOrderAfterPayment(paymentStatus, forceName) {
+  const name = forceName || document.getElementById('clientName').value.trim() || 'Customer';
+  orderCounter++;
+  const order = {
+    id: orderCounter, client: name,
+    items: cart.map(c => ({...findItem(c.id), qty: c.qty, notes: c.notes||''})),
+    total: getCartTotal(), status: 'novo',
+    paymentStatus: paymentStatus,
+    time: new Date().toLocaleTimeString('en-GB', {hour:'2-digit', minute:'2-digit'}),
+    ts: Date.now()
+  };
+  orders.unshift(order);
+  currentOrderId = order.id;
+  cart = [];
+  updateCartBadge();
+  showStatus(order);
+  setTimeout(() => openPrint(order.id), 600);
+  // Save to Supabase in background
+  await saveOrderToSupabase(order);
+}
+
+function showPaymentError(msg) {
+  const el = document.getElementById('paymentError');
+  el.textContent = msg;
+  el.style.display = 'block';
+}
+
+function switchPayTab(tab) {
+  document.querySelectorAll('.payment-tab').forEach(t => t.classList.remove('active'));
+  if (tab === 'card') {
+    document.querySelectorAll('.payment-tab')[0].classList.add('active');
+    document.getElementById('cardPaySection').style.display = 'block';
+    document.getElementById('counterPaySection').style.display = 'none';
+  } else {
+    document.querySelectorAll('.payment-tab')[1].classList.add('active');
+    document.getElementById('cardPaySection').style.display = 'none';
+    document.getElementById('counterPaySection').style.display = 'block';
+  }
+}
+
+function updatePaymentAmount() {
+  const total = getCartTotal();
+  const el = document.getElementById('payBtnAmount');
+  if (el) el.textContent = `£${total.toFixed(2)}`;
+  // Update payment request amount too
+  if (paymentRequest) {
+    paymentRequest.update({ total: { label: 'CAFFINI Order', amount: Math.round(total * 100) } });
+  }
+}
+
+// Replace old sendOrder
+function sendOrder() { sendOrderNoPayment(); }
+</script>
+</body>
+</html>
